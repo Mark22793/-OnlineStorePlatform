@@ -44,13 +44,13 @@
 <main class="container">
     @if (!string.IsNullOrEmpty(page?.Message))
     {
-        <div class="alert success">@page.Message</div>
+        <div class="alert success">@@page.Message</div>
     }
     @if (!string.IsNullOrEmpty(page?.Error))
     {
-        <div class="alert error">@page.Error</div>
+        <div class="alert error">@@page.Error</div>
     }
-    @RenderBody()
+    @@RenderBody()
 </main>
 
 <footer class="footer muted">
