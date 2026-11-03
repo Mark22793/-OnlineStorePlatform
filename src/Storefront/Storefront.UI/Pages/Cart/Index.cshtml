@@ -1,0 +1,51 @@
+@page
+@model Storefront.UI.Pages.Cart.IndexModel
+@{
+    ViewData["Title"] = "Cart";
+}
+
+<h1>Your cart</h1>
+
+@if (Model.Lines.Count == 0)
+{
+    <p>Your cart is empty. <a asp-page="/Index">Browse products</a>.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+        <tr><th>Product</th><th class="num">Unit price</th><th>Quantity</th><th class="num">Line total</th><th></th></tr>
+        </thead>
+        <tbody>
+        @foreach (var line in Model.Lines)
+        {
+            <tr>
+                <td><a asp-page="/Products/Details" asp-route-id="@line.ProductId">@line.Name</a></td>
+                <td class="num">PHP @line.UnitPrice.ToString("N2")</td>
+                <td>
+                    <form method="post" asp-page-handler="Update" class="row">
+                        <input type="hidden" name="productId" value="@line.ProductId" />
+                        <input type="number" name="quantity" value="@line.Quantity" min="0" max="100" aria-label="Quantity" />
+                        <button type="submit" class="secondary small">Update</button>
+                    </form>
+                </td>
+                <td class="num">PHP @line.LineTotal.ToString("N2")</td>
+                <td>
+                    <form method="post" asp-page-handler="Remove">
+                        <input type="hidden" name="productId" value="@line.ProductId" />
+                        <button type="submit" class="link">Remove</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        </tbody>
+        <tfoot>
+        <tr><th colspan="3">Estimated total</th><th class="num">PHP @Model.Total.ToString("N2")</th><th></th></tr>
+        </tfoot>
+    </table>
+    <p class="muted">Final prices are confirmed by the store when you place the order.</p>
+    <div class="row">
+        <a class="button" asp-page="/Checkout/Index">Checkout</a>
+        <form method="post" asp-page-handler="Clear"><button type="submit" class="secondary">Clear cart</button></form>
+    </div>
+}

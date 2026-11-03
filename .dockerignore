@@ -1,0 +1,16 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/.idea/
+**/*.user
+**/node_modules/
+**/TestResults/
+.git/
+.github/
+.env
+Evidence/
+Postman/
+**/Dockerfile*
+docker-compose*.yml
+DatabaseScripts/

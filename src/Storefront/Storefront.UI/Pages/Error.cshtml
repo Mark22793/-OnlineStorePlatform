@@ -1,0 +1,9 @@
+@page
+@model ErrorModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<h1>Something went wrong</h1>
+<p>The request could not be completed. If it keeps happening, quote this correlation ID to support: <code>@Model.CorrelationId</code></p>
+<p><a asp-page="/Index">Back to the store</a></p>

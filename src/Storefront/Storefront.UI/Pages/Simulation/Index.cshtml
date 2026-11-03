@@ -1,0 +1,26 @@
+@page
+@model Storefront.UI.Pages.Simulation.IndexModel
+@{
+    ViewData["Title"] = "Payment simulation";
+    var modes = new[]
+    {
+        ("None", "Payments succeed. Orders end Confirmed (unless the order itself asks for a failure)."),
+        ("Decline", "Every payment is declined. The saga releases the reserved stock and cancels the order. Nothing is charged, so nothing is refunded."),
+        ("FailAfterCharge", "The charge succeeds, then the order fails. The saga refunds the payment, releases the stock, and cancels the order."),
+    };
+}
+
+<h1>Payment simulation</h1>
+<p>This is the on-demand failure switch for demonstrating saga compensation. It applies to every payment processed after the change. No code change or restart is needed.</p>
+<p class="muted">Current mode: <strong>@Model.CurrentMode</strong> (since @Model.UpdatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"))</p>
+
+<form method="post" class="panel">
+    @foreach (var (name, description) in modes)
+    {
+        <label class="check">
+            <input type="radio" name="mode" value="@name" checked="@(Model.CurrentMode.ToString() == name)" />
+            <strong>@name</strong>: @description
+        </label>
+    }
+    <button type="submit">Save</button>
+</form>

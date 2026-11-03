@@ -1,0 +1,339 @@
+openapi: 3.0.3
+info:
+  title: Order API
+  version: '1.0'
+  description: 'Orders, their lines and status history. Order.API orchestrates the order saga: reserve stock, charge payment,
+    confirm; on failure release stock, refund if charged, cancel.'
+servers:
+- url: http://localhost:5000
+  description: API gateway (docker compose). The same paths are served by the service inside the network.
+tags:
+- name: Orders
+paths:
+  /order/v1/orders:
+    post:
+      tags:
+      - Orders
+      operationId: PlaceOrder
+      summary: Place an order (logged in)
+      description: Prices and names are read from Catalog (resilient typed client) and stored on the order, so later catalog
+        changes do not alter it.
+      security:
+      - bearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceOrderRequest'
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+          description: 'Accepted: the order is Pending and the saga has started. Poll GET /order/v1/orders/{id}.'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    get:
+      tags:
+      - Orders
+      operationId: ListOrders
+      summary: List my orders (all orders for Admin)
+      security:
+      - bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderSummary'
+          description: Newest first
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /order/v1/orders/{id}:
+    get:
+      tags:
+      - Orders
+      operationId: GetOrder
+      summary: Get an order with items and status history
+      security:
+      - bearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+          description: The order
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    BadRequest:
+      description: Validation failed
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblemDetails'
+    Unauthorized:
+      description: No valid bearer token (returned by the gateway)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Valid token but the role is not allowed (returned by the gateway)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Conflict:
+      description: Request conflicts with the current state
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ServiceUnavailable:
+      description: A dependency is unavailable (circuit open, timeout, or downstream failure)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    ProblemDetails:
+      type: object
+      description: RFC 9457 problem details. traceId and correlationId are added by every service.
+      properties:
+        type:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        status:
+          type: integer
+          nullable: true
+        detail:
+          type: string
+          nullable: true
+        instance:
+          type: string
+          nullable: true
+        traceId:
+          type: string
+          nullable: true
+        correlationId:
+          type: string
+          nullable: true
+      additionalProperties: true
+    ValidationProblemDetails:
+      allOf:
+      - $ref: '#/components/schemas/ProblemDetails'
+      - type: object
+        properties:
+          errors:
+            type: object
+            additionalProperties:
+              type: array
+              items:
+                type: string
+    OrderStatus:
+      type: string
+      enum:
+      - Pending
+      - StockReserved
+      - PaymentCharged
+      - Confirmed
+      - Cancelled
+    SagaStep:
+      type: string
+      enum:
+      - AwaitingStock
+      - AwaitingPayment
+      - Compensating
+      - Completed
+    OrderLineRequest:
+      type: object
+      required:
+      - productId
+      - quantity
+      properties:
+        productId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
+    PlaceOrderRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/OrderLineRequest'
+        simulatePaymentFailure:
+          type: boolean
+          default: false
+          description: When true, Payment declines this order so the saga compensates (releases the reserved stock).
+    OrderItem:
+      type: object
+      required:
+      - productId
+      - productName
+      - unitPrice
+      - quantity
+      - lineTotal
+      properties:
+        productId:
+          type: string
+          format: uuid
+        productName:
+          type: string
+        unitPrice:
+          type: number
+          format: decimal
+          description: Amount with 2 decimal places (SQL Server decimal(18,2)).
+        quantity:
+          type: integer
+          format: int32
+        lineTotal:
+          type: number
+          format: decimal
+          description: Amount with 2 decimal places (SQL Server decimal(18,2)).
+    StatusHistoryEntry:
+      type: object
+      required:
+      - status
+      - note
+      - occurredAtUtc
+      properties:
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        note:
+          type: string
+        occurredAtUtc:
+          type: string
+          format: date-time
+    Order:
+      type: object
+      required:
+      - id
+      - customerId
+      - status
+      - sagaStep
+      - totalAmount
+      - currency
+      - simulatePaymentFailure
+      - createdAtUtc
+      - updatedAtUtc
+      - items
+      - statusHistory
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        sagaStep:
+          $ref: '#/components/schemas/SagaStep'
+        totalAmount:
+          type: number
+          format: decimal
+          description: Amount with 2 decimal places (SQL Server decimal(18,2)).
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          example: PHP
+        simulatePaymentFailure:
+          type: boolean
+        paymentId:
+          type: string
+          format: uuid
+          nullable: true
+        cancellationReason:
+          type: string
+          nullable: true
+        createdAtUtc:
+          type: string
+          format: date-time
+        updatedAtUtc:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        statusHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatusHistoryEntry'
+    OrderSummary:
+      type: object
+      required:
+      - id
+      - status
+      - totalAmount
+      - currency
+      - itemCount
+      - createdAtUtc
+      - updatedAtUtc
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        totalAmount:
+          type: number
+          format: decimal
+          description: Amount with 2 decimal places (SQL Server decimal(18,2)).
+        currency:
+          type: string
+        itemCount:
+          type: integer
+          format: int32
+        createdAtUtc:
+          type: string
+          format: date-time
+        updatedAtUtc:
+          type: string
+          format: date-time

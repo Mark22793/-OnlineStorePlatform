@@ -1,0 +1,199 @@
+# Online Store Platform: the whole system with one command.
+#
+#   cp .env.example .env      # first time only; then change the passwords
+#   docker compose up --build
+#
+# Published to the host: gateway 5000, Storefront 5100, RabbitMQ UI 15672, SQL Server 14333 (for SSMS / the
+# verification queries; no API client uses it). Every API call goes through the gateway. Services listen on
+# 8080 inside the store-net network only.
+
+name: online-store
+
+x-dotnet-service: &dotnet-service
+  restart: on-failure
+  networks: [store-net]
+  healthcheck:
+    test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+    interval: 10s
+    timeout: 3s
+    retries: 12
+    start_period: 40s
+
+x-dotnet-env: &dotnet-env
+  ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+  ASPNETCORE_HTTP_PORTS: "8080"
+  Swagger__Enabled: "true"
+  Logging__Console__FormatterOptions__IncludeScopes: "true"
+
+x-rabbit-env: &rabbit-env
+  RabbitMq__Host: rabbitmq
+  RabbitMq__Port: "5672"
+  RabbitMq__Username: ${RABBITMQ_USER:-guest}
+  RabbitMq__Password: ${RABBITMQ_PASSWORD:-guest}
+  RabbitMq__VirtualHost: /
+
+x-db-ready: &db-ready
+  sqlserver-init: { condition: service_completed_successfully }
+
+services:
+  # ---------------- infrastructure ----------------
+  # One SQL Server instance, five databases. Each service connects with its own login that can only open its own
+  # database (DatabaseScripts/00_CreateDatabasesAndLogins.sql), so ownership is enforced, not just agreed.
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env (copy .env.example to .env)}
+    ports:
+      - "14333:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+      - ./DatabaseScripts:/scripts:ro
+    networks: [store-net]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -b -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+  # One-shot: creates CatalogDb, InventoryDb, OrderDb, PaymentDb, AuthDb and the per-service logins, then exits.
+  # Idempotent, so it runs on every `up`. Tables are created by each service's EF Core migrations.
+  sqlserver-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: "no"
+    depends_on:
+      sqlserver: { condition: service_healthy }
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env}
+      CATALOG_DB_PASSWORD: ${CATALOG_DB_PASSWORD:?Set CATALOG_DB_PASSWORD in .env}
+      INVENTORY_DB_PASSWORD: ${INVENTORY_DB_PASSWORD:?Set INVENTORY_DB_PASSWORD in .env}
+      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD:?Set ORDER_DB_PASSWORD in .env}
+      PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD:?Set PAYMENT_DB_PASSWORD in .env}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD in .env}
+    volumes:
+      - ./DatabaseScripts:/scripts:ro
+    networks: [store-net]
+    entrypoint:
+      - /bin/bash
+      - -c
+      - /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P "$$MSSQL_SA_PASSWORD" -C -b -i /scripts/00_CreateDatabasesAndLogins.sql
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    restart: unless-stopped
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "15672:15672" # management UI (queues and .dlq evidence)
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks: [store-net]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  # ---------------- services ----------------
+  catalog-api:
+    <<: *dotnet-service
+    build:
+      context: .
+      dockerfile: src/Services/Catalog.API/Dockerfile
+    environment:
+      <<: *dotnet-env
+      ConnectionStrings__CatalogDb: Server=sqlserver,1433;Database=CatalogDb;User Id=catalog_svc;Password=${CATALOG_DB_PASSWORD};TrustServerCertificate=True;Encrypt=True
+    depends_on:
+      <<: *db-ready
+
+  inventory-api:
+    <<: *dotnet-service
+    build:
+      context: .
+      dockerfile: src/Services/Inventory.API/Dockerfile
+    environment:
+      <<: [*dotnet-env, *rabbit-env]
+      ConnectionStrings__InventoryDb: Server=sqlserver,1433;Database=InventoryDb;User Id=inventory_svc;Password=${INVENTORY_DB_PASSWORD};TrustServerCertificate=True;Encrypt=True
+    depends_on:
+      <<: *db-ready
+      rabbitmq: { condition: service_healthy }
+
+  order-api:
+    <<: *dotnet-service
+    build:
+      context: .
+      dockerfile: src/Services/Order.API/Dockerfile
+    environment:
+      <<: [*dotnet-env, *rabbit-env]
+      ConnectionStrings__OrderDb: Server=sqlserver,1433;Database=OrderDb;User Id=order_svc;Password=${ORDER_DB_PASSWORD};TrustServerCertificate=True;Encrypt=True
+      Services__CatalogApi: http://catalog-api:8080
+    depends_on:
+      <<: *db-ready
+      rabbitmq: { condition: service_healthy }
+
+  payment-api:
+    <<: *dotnet-service
+    build:
+      context: .
+      dockerfile: src/Services/Payment.API/Dockerfile
+    environment:
+      <<: [*dotnet-env, *rabbit-env]
+      ConnectionStrings__PaymentDb: Server=sqlserver,1433;Database=PaymentDb;User Id=payment_svc;Password=${PAYMENT_DB_PASSWORD};TrustServerCertificate=True;Encrypt=True
+    depends_on:
+      <<: *db-ready
+      rabbitmq: { condition: service_healthy }
+
+  # ---------------- edge ----------------
+  api-gateway:
+    <<: *dotnet-service
+    build:
+      context: .
+      dockerfile: src/Gateway/ApiGateway/Dockerfile
+    environment:
+      <<: *dotnet-env
+      GlobalConfiguration__BaseUrl: http://localhost:5000
+      ConnectionStrings__AuthDb: Server=sqlserver,1433;Database=AuthDb;User Id=auth_svc;Password=${AUTH_DB_PASSWORD};TrustServerCertificate=True;Encrypt=True
+      Jwt__Key: ${JWT_KEY:?Set JWT_KEY in .env (at least 32 characters)}
+      Jwt__Issuer: ${JWT_ISSUER:-store-gateway}
+      Jwt__Audience: ${JWT_AUDIENCE:-store-platform}
+      Jwt__ExpiryMinutes: ${JWT_EXPIRY_MINUTES:-60}
+      RateLimiting__AuthPermitsPerMinute: ${AUTH_RATE_LIMIT_PER_MINUTE:-5}
+      Seed__AdminEmail: ${SEED_ADMIN_EMAIL:-}
+      Seed__AdminPassword: ${SEED_ADMIN_PASSWORD:-}
+      Seed__CustomerEmail: ${SEED_CUSTOMER_EMAIL:-}
+      Seed__CustomerPassword: ${SEED_CUSTOMER_PASSWORD:-}
+    ports:
+      - "5000:8080"
+    depends_on:
+      <<: *db-ready
+      catalog-api: { condition: service_started }
+      inventory-api: { condition: service_started }
+      order-api: { condition: service_started }
+      payment-api: { condition: service_started }
+
+  storefront:
+    <<: *dotnet-service
+    build:
+      context: .
+      dockerfile: src/Storefront/Storefront.UI/Dockerfile
+    environment:
+      <<: *dotnet-env
+      Gateway__BaseUrl: http://api-gateway:8080/
+    ports:
+      - "5100:8080"
+    depends_on:
+      api-gateway: { condition: service_healthy }
+
+networks:
+  store-net:
+    driver: bridge
+
+volumes:
+  sqlserver-data:
+  rabbitmq-data:

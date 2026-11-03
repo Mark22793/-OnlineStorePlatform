@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Order.API</RootNamespace>
+    <UserSecretsId>store-order-api</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Client" Version="10.0.13">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NSwag.ApiDescription.Client" Version="14.7.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\Store.Shared.Common\Store.Shared.Common.csproj" />
+    <ProjectReference Include="..\..\Shared\Store.Shared.Events\Store.Shared.Events.csproj" />
+  </ItemGroup>
+
+  <!-- Contract-first: the committed contract is the source of truth; Swagger UI serves it as-is. -->
+  <ItemGroup>
+    <None Include="..\..\..\contracts\order-v1.yaml" Link="contracts\order-v1.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Generated at build time from the Catalog contract (Module 2: clients generated from the contracts). -->
+  <ItemGroup>
+    <OpenApiReference Include="..\..\..\contracts\catalog-v1.yaml" Link="OpenAPIs\catalog-v1.yaml" CodeGenerator="NSwagCSharp" Namespace="Order.API.Clients.Catalog" ClassName="CatalogClient" Options="/UseBaseUrl:false /GenerateClientInterfaces:true /JsonLibrary:SystemTextJson /GenerateNullableReferenceTypes:true /OperationGenerationMode:SingleClientFromOperationId /DateTimeType:System.DateTimeOffset" />
+  </ItemGroup>
+
+</Project>

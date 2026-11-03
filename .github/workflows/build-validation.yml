@@ -1,0 +1,84 @@
+name: Build validation
+
+# Runs on every pull request to main (and on pushes to main) so a PR can only be merged when the
+# solution builds, the contracts and gateway config parse, and every Docker image builds.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and test (.NET)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore OnlineStorePlatform.sln
+
+      - name: Build
+        run: dotnet build OnlineStorePlatform.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test OnlineStorePlatform.sln --configuration Release --no-build --verbosity normal
+
+      # Fails if a DbContext has no migration yet, or if the model changed without a new migration.
+      - name: EF Core migrations are up to date
+        run: |
+          dotnet tool install --global dotnet-ef --version 10.0.13
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          dotnet ef migrations has-pending-model-changes --project src/Services/Catalog.API --context CatalogDbContext --configuration Release --no-build
+          dotnet ef migrations has-pending-model-changes --project src/Services/Inventory.API --context InventoryDbContext --configuration Release --no-build
+          dotnet ef migrations has-pending-model-changes --project src/Services/Order.API --context OrderDbContext --configuration Release --no-build
+          dotnet ef migrations has-pending-model-changes --project src/Services/Payment.API --context PaymentDbContext --configuration Release --no-build
+          dotnet ef migrations has-pending-model-changes --project src/Gateway/ApiGateway --context AuthDbContext --configuration Release --no-build
+
+  validate-config:
+    name: Validate contracts, gateway and compose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No secrets committed
+        run: |
+          if git ls-files --error-unmatch .env >/dev/null 2>&1; then
+            echo "::error::.env is committed. Remove it and keep only .env.example."; exit 1
+          fi
+
+      - name: OpenAPI contracts are valid YAML with an openapi version
+        run: |
+          python3 -m pip install --quiet pyyaml
+          for f in contracts/*.yaml; do
+            python3 -c "import sys, yaml; d = yaml.safe_load(open(sys.argv[1])); assert str(d.get('openapi','')).startswith('3.'), sys.argv[1]" "$f"
+            echo "ok $f"
+          done
+
+      - name: ocelot.json parses
+        run: python3 -m json.tool src/Gateway/ApiGateway/ocelot.json > /dev/null
+
+      - name: docker compose config
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+
+  docker:
+    name: Build Docker images
+    runs-on: ubuntu-latest
+    needs: [build, validate-config]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: docker compose build
+        run: |
+          cp .env.example .env
+          docker compose build

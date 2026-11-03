@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Storefront.UI</RootNamespace>
+    <UserSecretsId>store-storefront-ui</UserSecretsId>
+    <StoreNSwagOptions>/UseBaseUrl:false /GenerateClientInterfaces:true /JsonLibrary:SystemTextJson /GenerateNullableReferenceTypes:true /OperationGenerationMode:SingleClientFromOperationId /DateTimeType:System.DateTimeOffset</StoreNSwagOptions>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Client" Version="10.0.13">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NSwag.ApiDescription.Client" Version="14.7.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\Store.Shared.Common\Store.Shared.Common.csproj" />
+  </ItemGroup>
+
+  <!--
+    Typed clients generated at build time from the same contracts the services implement. The gateway exposes
+    every route at the same path as the service, so the contracts describe the gateway too.
+  -->
+  <ItemGroup>
+    <OpenApiReference Include="..\..\..\contracts\auth-v1.yaml" Link="OpenAPIs\auth-v1.yaml" CodeGenerator="NSwagCSharp" Namespace="Storefront.UI.Clients.Auth" ClassName="AuthClient" Options="$(StoreNSwagOptions)" />
+    <OpenApiReference Include="..\..\..\contracts\catalog-v1.yaml" Link="OpenAPIs\catalog-v1.yaml" CodeGenerator="NSwagCSharp" Namespace="Storefront.UI.Clients.Catalog" ClassName="CatalogClient" Options="$(StoreNSwagOptions)" />
+    <OpenApiReference Include="..\..\..\contracts\inventory-v1.yaml" Link="OpenAPIs\inventory-v1.yaml" CodeGenerator="NSwagCSharp" Namespace="Storefront.UI.Clients.Inventory" ClassName="InventoryClient" Options="$(StoreNSwagOptions)" />
+    <OpenApiReference Include="..\..\..\contracts\order-v1.yaml" Link="OpenAPIs\order-v1.yaml" CodeGenerator="NSwagCSharp" Namespace="Storefront.UI.Clients.Orders" ClassName="OrderClient" Options="$(StoreNSwagOptions)" />
+    <OpenApiReference Include="..\..\..\contracts\payment-v1.yaml" Link="OpenAPIs\payment-v1.yaml" CodeGenerator="NSwagCSharp" Namespace="Storefront.UI.Clients.Payments" ClassName="PaymentClient" Options="$(StoreNSwagOptions)" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,28 @@
+@page "{id:guid}"
+@model Storefront.UI.Pages.Products.DetailsModel
+@{
+    ViewData["Title"] = Model.Product?.Name ?? "Product";
+    var available = Model.Stock?.QuantityAvailable ?? 0;
+}
+
+<p><a asp-page="/Index">&larr; All products</a></p>
+
+@if (Model.Product is { } product)
+{
+    <article class="card wide">
+        <h1>@product.Name</h1>
+        <p>@product.Description</p>
+        <p class="price">PHP @product.Price.ToString("N2")</p>
+        <p class="@(available > 0 ? "stock" : "stock out")">
+            @(available > 0 ? $"{available} available" : "Out of stock")
+            @if (Model.Stock is { } stock)
+            {
+                <span class="muted">(@stock.QuantityOnHand on hand, @stock.QuantityReserved reserved by open orders)</span>
+            }
+        </p>
+        <form method="post" class="row">
+            <input type="number" name="quantity" value="1" min="1" max="100" aria-label="Quantity" />
+            <button type="submit" disabled="@(available <= 0)">Add to cart</button>
+        </form>
+    </article>
+}

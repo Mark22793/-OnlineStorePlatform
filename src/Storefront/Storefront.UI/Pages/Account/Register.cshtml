@@ -1,0 +1,21 @@
+@page
+@model Storefront.UI.Pages.Account.RegisterModel
+@{
+    ViewData["Title"] = "Register";
+}
+
+<h1>Create an account</h1>
+<form method="post" class="panel narrow">
+    <div asp-validation-summary="ModelOnly" class="alert error"></div>
+    <input type="hidden" asp-for="ReturnUrl" />
+    <label>Name <input asp-for="DisplayName" autocomplete="name" /></label>
+    <span asp-validation-for="DisplayName" class="field-error"></span>
+    <label>Email <input asp-for="Email" autocomplete="username" /></label>
+    <span asp-validation-for="Email" class="field-error"></span>
+    <label>Password <input asp-for="Password" autocomplete="new-password" /></label>
+    <span asp-validation-for="Password" class="field-error"></span>
+    <label>Confirm password <input asp-for="ConfirmPassword" autocomplete="new-password" /></label>
+    <span asp-validation-for="ConfirmPassword" class="field-error"></span>
+    <p class="muted">At least 8 characters, including a letter and a digit.</p>
+    <button type="submit">Register</button>
+</form>

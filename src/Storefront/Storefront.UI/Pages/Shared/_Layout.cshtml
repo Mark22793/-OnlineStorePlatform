@@ -1,0 +1,60 @@
+@inject CartService Cart
+@{
+    var user = Context.User;
+    var signedIn = user.Identity?.IsAuthenticated == true;
+    var page = ViewContext.ViewData.Model as StorePageModel; // [TempData] Message/Error survive a redirect
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    @await RenderSectionAsync("Head", required: false)
+    <title>@ViewData["Title"] · Online Store</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" asp-page="/Index">Online Store</a>
+    <nav>
+        <a asp-page="/Index">Products</a>
+        <a asp-page="/Cart/Index">Cart <span class="badge">@Cart.Count</span></a>
+        @if (signedIn)
+        {
+            <a asp-page="/Orders/Index">My orders</a>
+            <a asp-page="/Simulation/Index">Payment simulation</a>
+        }
+    </nav>
+    <div class="account">
+        @if (signedIn)
+        {
+            <span class="muted">@user.Identity!.Name (@(user.IsInRole("Admin") ? "Admin" : "Customer"))</span>
+            <form method="post" asp-page="/Account/Logout" class="inline">
+                <button type="submit" class="link">Log out</button>
+            </form>
+        }
+        else
+        {
+            <a asp-page="/Account/Login">Log in</a>
+            <a asp-page="/Account/Register" class="button small">Register</a>
+        }
+    </div>
+</header>
+
+<main class="container">
+    @if (!string.IsNullOrEmpty(page?.Message))
+    {
+        <div class="alert success">@page.Message</div>
+    }
+    @if (!string.IsNullOrEmpty(page?.Error))
+    {
+        <div class="alert error">@page.Error</div>
+    }
+    @RenderBody()
+</main>
+
+<footer class="footer muted">
+    Every request goes through the API gateway. Correlation ID for this page: <code>@Context.Items["CorrelationId"]</code>
+</footer>
+</body>
+</html>

@@ -1,0 +1,17 @@
+@page
+@model Storefront.UI.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Log in";
+}
+
+<h1>Log in</h1>
+<form method="post" class="panel narrow">
+    <div asp-validation-summary="ModelOnly" class="alert error"></div>
+    <input type="hidden" asp-for="ReturnUrl" />
+    <label>Email <input asp-for="Email" autocomplete="username" /></label>
+    <span asp-validation-for="Email" class="field-error"></span>
+    <label>Password <input asp-for="Password" autocomplete="current-password" /></label>
+    <span asp-validation-for="Password" class="field-error"></span>
+    <button type="submit">Log in</button>
+    <p class="muted">No account? <a asp-page="/Account/Register" asp-route-returnUrl="@Model.ReturnUrl">Register</a>.</p>
+</form>

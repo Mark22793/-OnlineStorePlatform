@@ -1,0 +1,264 @@
+openapi: 3.0.3
+info:
+  title: Payment API
+  version: '1.0'
+  description: 'Simulated payment provider: charges, refunds, and the on-demand payment failure switch used to demonstrate
+    saga compensation.'
+servers:
+- url: http://localhost:5000
+  description: API gateway (docker compose). The same paths are served by the service inside the network.
+tags:
+- name: Payments
+paths:
+  /payment/v1/payments/{orderId}:
+    get:
+      tags:
+      - Payments
+      operationId: GetPaymentForOrder
+      summary: Payment (and refunds) for an order
+      security:
+      - bearer: []
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+          description: The payment
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /payment/v1/simulation:
+    get:
+      tags:
+      - Payments
+      operationId: GetSimulation
+      summary: Current payment failure mode
+      security:
+      - bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Simulation'
+          description: Current mode
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags:
+      - Payments
+      operationId: SetSimulation
+      summary: Set the payment failure mode
+      description: 'The failure switch graders use: no code change or service restart needed. Applies to payments processed
+        after the change.'
+      security:
+      - bearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetSimulationRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Simulation'
+          description: New mode
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    BadRequest:
+      description: Validation failed
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblemDetails'
+    Unauthorized:
+      description: No valid bearer token (returned by the gateway)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Valid token but the role is not allowed (returned by the gateway)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Conflict:
+      description: Request conflicts with the current state
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ServiceUnavailable:
+      description: A dependency is unavailable (circuit open, timeout, or downstream failure)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    ProblemDetails:
+      type: object
+      description: RFC 9457 problem details. traceId and correlationId are added by every service.
+      properties:
+        type:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        status:
+          type: integer
+          nullable: true
+        detail:
+          type: string
+          nullable: true
+        instance:
+          type: string
+          nullable: true
+        traceId:
+          type: string
+          nullable: true
+        correlationId:
+          type: string
+          nullable: true
+      additionalProperties: true
+    ValidationProblemDetails:
+      allOf:
+      - $ref: '#/components/schemas/ProblemDetails'
+      - type: object
+        properties:
+          errors:
+            type: object
+            additionalProperties:
+              type: array
+              items:
+                type: string
+    PaymentStatus:
+      type: string
+      enum:
+      - Charged
+      - Failed
+      - Refunded
+    Refund:
+      type: object
+      required:
+      - id
+      - amount
+      - reason
+      - status
+      - createdAtUtc
+      properties:
+        id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: decimal
+          description: Amount with 2 decimal places (SQL Server decimal(18,2)).
+        reason:
+          type: string
+        status:
+          type: string
+          example: Completed
+        createdAtUtc:
+          type: string
+          format: date-time
+    Payment:
+      type: object
+      required:
+      - id
+      - orderId
+      - customerId
+      - amount
+      - currency
+      - status
+      - createdAtUtc
+      - updatedAtUtc
+      - refunds
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: decimal
+          description: Amount with 2 decimal places (SQL Server decimal(18,2)).
+        currency:
+          type: string
+        status:
+          $ref: '#/components/schemas/PaymentStatus'
+        failureReason:
+          type: string
+          nullable: true
+        providerReference:
+          type: string
+          nullable: true
+        createdAtUtc:
+          type: string
+          format: date-time
+        updatedAtUtc:
+          type: string
+          format: date-time
+        refunds:
+          type: array
+          items:
+            $ref: '#/components/schemas/Refund'
+    PaymentFailureMode:
+      type: string
+      enum:
+      - None
+      - Decline
+      - FailAfterCharge
+      description: 'None: payments succeed. Decline: every payment is declined (stock released). FailAfterCharge: the charge
+        succeeds, then the order fails (stock released and payment refunded).'
+    Simulation:
+      type: object
+      required:
+      - mode
+      - updatedAtUtc
+      properties:
+        mode:
+          $ref: '#/components/schemas/PaymentFailureMode'
+        updatedAtUtc:
+          type: string
+          format: date-time
+    SetSimulationRequest:
+      type: object
+      required:
+      - mode
+      properties:
+        mode:
+          $ref: '#/components/schemas/PaymentFailureMode'

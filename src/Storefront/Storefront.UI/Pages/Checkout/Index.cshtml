@@ -1,0 +1,34 @@
+@page
+@model Storefront.UI.Pages.Checkout.IndexModel
+@{
+    ViewData["Title"] = "Checkout";
+}
+
+<h1>Checkout</h1>
+
+<table class="table">
+    <thead><tr><th>Product</th><th class="num">Qty</th><th class="num">Line total</th></tr></thead>
+    <tbody>
+    @foreach (var line in Model.Lines)
+    {
+        <tr><td>@line.Name</td><td class="num">@line.Quantity</td><td class="num">PHP @line.LineTotal.ToString("N2")</td></tr>
+    }
+    </tbody>
+    <tfoot><tr><th colspan="2">Estimated total</th><th class="num">PHP @Model.Total.ToString("N2")</th></tr></tfoot>
+</table>
+
+@if (Model.GlobalMode is { } mode && mode.ToString() != "None")
+{
+    <div class="alert warning">
+        Payment simulation is set to <strong>@mode</strong> for every order.
+        <a asp-page="/Simulation/Index">Change it</a>.
+    </div>
+}
+
+<form method="post" class="panel">
+    <label class="check">
+        <input type="checkbox" asp-for="SimulatePaymentFailure" />
+        Simulate payment failure for this order (the payment is declined, the saga releases the reserved stock and cancels the order)
+    </label>
+    <button type="submit">Place order</button>
+</form>

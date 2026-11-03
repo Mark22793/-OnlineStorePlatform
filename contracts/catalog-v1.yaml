@@ -1,0 +1,284 @@
+openapi: 3.0.3
+info:
+  title: Catalog API
+  version: '1.0'
+  description: 'Products: the source of truth for what can be sold. Reads are public; writes require the Admin role at the
+    gateway.'
+servers:
+- url: http://localhost:5000
+  description: API gateway (docker compose). The same paths are served by the service inside the network.
+tags:
+- name: Products
+paths:
+  /catalog/v1/products:
+    get:
+      tags:
+      - Products
+      operationId: ListProducts
+      summary: List products
+      security: []
+      parameters:
+      - name: includeInactive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+          description: Products ordered by name
+    post:
+      tags:
+      - Products
+      operationId: CreateProduct
+      summary: Create a product (Admin)
+      security:
+      - bearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: Created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /catalog/v1/products/{id}:
+    get:
+      tags:
+      - Products
+      operationId: GetProduct
+      summary: Get a product
+      security: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: The product
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+      - Products
+      operationId: UpdateProduct
+      summary: Update a product (Admin)
+      security:
+      - bearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: Updated
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags:
+      - Products
+      operationId: DeactivateProduct
+      summary: Deactivate a product (Admin)
+      security:
+      - bearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Deactivated (soft delete; existing orders keep their snapshot)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    BadRequest:
+      description: Validation failed
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblemDetails'
+    Unauthorized:
+      description: No valid bearer token (returned by the gateway)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Valid token but the role is not allowed (returned by the gateway)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Conflict:
+      description: Request conflicts with the current state
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ServiceUnavailable:
+      description: A dependency is unavailable (circuit open, timeout, or downstream failure)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    ProblemDetails:
+      type: object
+      description: RFC 9457 problem details. traceId and correlationId are added by every service.
+      properties:
+        type:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        status:
+          type: integer
+          nullable: true
+        detail:
+          type: string
+          nullable: true
+        instance:
+          type: string
+          nullable: true
+        traceId:
+          type: string
+          nullable: true
+        correlationId:
+          type: string
+          nullable: true
+      additionalProperties: true
+    ValidationProblemDetails:
+      allOf:
+      - $ref: '#/components/schemas/ProblemDetails'
+      - type: object
+        properties:
+          errors:
+            type: object
+            additionalProperties:
+              type: array
+              items:
+                type: string
+    Product:
+      type: object
+      required:
+      - id
+      - name
+      - description
+      - price
+      - isActive
+      - createdAtUtc
+      - updatedAtUtc
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        price:
+          type: number
+          format: decimal
+          description: Amount with 2 decimal places (SQL Server decimal(18,2)).
+        isActive:
+          type: boolean
+        createdAtUtc:
+          type: string
+          format: date-time
+        updatedAtUtc:
+          type: string
+          format: date-time
+    ProductRequest:
+      type: object
+      required:
+      - name
+      - price
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: Wireless Mouse
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+        price:
+          type: number
+          format: decimal
+          description: Amount with 2 decimal places (SQL Server decimal(18,2)).
+          minimum: 0
+          maximum: 1000000
+          example: 899.0
+        isActive:
+          type: boolean
+          default: true

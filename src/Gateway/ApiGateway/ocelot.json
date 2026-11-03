@@ -1,0 +1,377 @@
+{
+  "Routes": [
+    {
+      "Key": "catalog-list",
+      "UpstreamPathTemplate": "/catalog/v1/products",
+      "UpstreamHttpMethod": [
+        "Get"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamPathTemplate": "/catalog/v1/products",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "catalog-api",
+          "Port": 8080
+        }
+      ]
+    },
+    {
+      "Key": "catalog-get",
+      "UpstreamPathTemplate": "/catalog/v1/products/{id}",
+      "UpstreamHttpMethod": [
+        "Get"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamPathTemplate": "/catalog/v1/products/{id}",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "catalog-api",
+          "Port": 8080
+        }
+      ]
+    },
+    {
+      "Key": "catalog-create",
+      "UpstreamPathTemplate": "/catalog/v1/products",
+      "UpstreamHttpMethod": [
+        "Post"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamPathTemplate": "/catalog/v1/products",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "catalog-api",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKeys": [
+          "Bearer"
+        ],
+        "AllowedScopes": []
+      },
+      "AddHeadersToRequest": {
+        "X-User-Id": "Claims[sub] > value",
+        "X-User-Role": "Claims[role] > value",
+        "X-User-Email": "Claims[email] > value"
+      },
+      "RouteClaimsRequirement": {
+        "role": "Admin"
+      }
+    },
+    {
+      "Key": "catalog-update",
+      "UpstreamPathTemplate": "/catalog/v1/products/{id}",
+      "UpstreamHttpMethod": [
+        "Put"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamPathTemplate": "/catalog/v1/products/{id}",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "catalog-api",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKeys": [
+          "Bearer"
+        ],
+        "AllowedScopes": []
+      },
+      "AddHeadersToRequest": {
+        "X-User-Id": "Claims[sub] > value",
+        "X-User-Role": "Claims[role] > value",
+        "X-User-Email": "Claims[email] > value"
+      },
+      "RouteClaimsRequirement": {
+        "role": "Admin"
+      }
+    },
+    {
+      "Key": "catalog-deactivate",
+      "UpstreamPathTemplate": "/catalog/v1/products/{id}",
+      "UpstreamHttpMethod": [
+        "Delete"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamPathTemplate": "/catalog/v1/products/{id}",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "catalog-api",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKeys": [
+          "Bearer"
+        ],
+        "AllowedScopes": []
+      },
+      "AddHeadersToRequest": {
+        "X-User-Id": "Claims[sub] > value",
+        "X-User-Role": "Claims[role] > value",
+        "X-User-Email": "Claims[email] > value"
+      },
+      "RouteClaimsRequirement": {
+        "role": "Admin"
+      }
+    },
+    {
+      "Key": "inventory-list",
+      "UpstreamPathTemplate": "/inventory/v1/stock",
+      "UpstreamHttpMethod": [
+        "Get"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamPathTemplate": "/inventory/v1/stock",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "inventory-api",
+          "Port": 8080
+        }
+      ]
+    },
+    {
+      "Key": "inventory-get",
+      "UpstreamPathTemplate": "/inventory/v1/stock/{productId}",
+      "UpstreamHttpMethod": [
+        "Get"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamPathTemplate": "/inventory/v1/stock/{productId}",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "inventory-api",
+          "Port": 8080
+        }
+      ]
+    },
+    {
+      "Key": "inventory-adjust",
+      "UpstreamPathTemplate": "/inventory/v1/stock/{productId}",
+      "UpstreamHttpMethod": [
+        "Put"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamPathTemplate": "/inventory/v1/stock/{productId}",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "inventory-api",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKeys": [
+          "Bearer"
+        ],
+        "AllowedScopes": []
+      },
+      "AddHeadersToRequest": {
+        "X-User-Id": "Claims[sub] > value",
+        "X-User-Role": "Claims[role] > value",
+        "X-User-Email": "Claims[email] > value"
+      },
+      "RouteClaimsRequirement": {
+        "role": "Admin"
+      }
+    },
+    {
+      "Key": "inventory-reservations",
+      "UpstreamPathTemplate": "/inventory/v1/reservations/{orderId}",
+      "UpstreamHttpMethod": [
+        "Get"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamPathTemplate": "/inventory/v1/reservations/{orderId}",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "inventory-api",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKeys": [
+          "Bearer"
+        ],
+        "AllowedScopes": []
+      },
+      "AddHeadersToRequest": {
+        "X-User-Id": "Claims[sub] > value",
+        "X-User-Role": "Claims[role] > value",
+        "X-User-Email": "Claims[email] > value"
+      },
+      "RouteClaimsRequirement": {
+        "role": "Admin"
+      }
+    },
+    {
+      "Key": "order-place",
+      "UpstreamPathTemplate": "/order/v1/orders",
+      "UpstreamHttpMethod": [
+        "Post"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamPathTemplate": "/order/v1/orders",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "order-api",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKeys": [
+          "Bearer"
+        ],
+        "AllowedScopes": []
+      },
+      "AddHeadersToRequest": {
+        "X-User-Id": "Claims[sub] > value",
+        "X-User-Role": "Claims[role] > value",
+        "X-User-Email": "Claims[email] > value"
+      },
+      "RateLimitOptions": {
+        "EnableRateLimiting": true,
+        "ClientWhitelist": [],
+        "Limit": 30,
+        "Period": "1m",
+        "StatusCode": 429,
+        "QuotaMessage": "Too many orders placed. Maximum {0} per {1}. Try again later."
+      }
+    },
+    {
+      "Key": "order-list",
+      "UpstreamPathTemplate": "/order/v1/orders",
+      "UpstreamHttpMethod": [
+        "Get"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamPathTemplate": "/order/v1/orders",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "order-api",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKeys": [
+          "Bearer"
+        ],
+        "AllowedScopes": []
+      },
+      "AddHeadersToRequest": {
+        "X-User-Id": "Claims[sub] > value",
+        "X-User-Role": "Claims[role] > value",
+        "X-User-Email": "Claims[email] > value"
+      }
+    },
+    {
+      "Key": "order-get",
+      "UpstreamPathTemplate": "/order/v1/orders/{id}",
+      "UpstreamHttpMethod": [
+        "Get"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamPathTemplate": "/order/v1/orders/{id}",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "order-api",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKeys": [
+          "Bearer"
+        ],
+        "AllowedScopes": []
+      },
+      "AddHeadersToRequest": {
+        "X-User-Id": "Claims[sub] > value",
+        "X-User-Role": "Claims[role] > value",
+        "X-User-Email": "Claims[email] > value"
+      }
+    },
+    {
+      "Key": "payment-for-order",
+      "UpstreamPathTemplate": "/payment/v1/payments/{orderId}",
+      "UpstreamHttpMethod": [
+        "Get"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamPathTemplate": "/payment/v1/payments/{orderId}",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "payment-api",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKeys": [
+          "Bearer"
+        ],
+        "AllowedScopes": []
+      },
+      "AddHeadersToRequest": {
+        "X-User-Id": "Claims[sub] > value",
+        "X-User-Role": "Claims[role] > value",
+        "X-User-Email": "Claims[email] > value"
+      }
+    },
+    {
+      "Key": "payment-simulation-get",
+      "UpstreamPathTemplate": "/payment/v1/simulation",
+      "UpstreamHttpMethod": [
+        "Get"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamPathTemplate": "/payment/v1/simulation",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "payment-api",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKeys": [
+          "Bearer"
+        ],
+        "AllowedScopes": []
+      },
+      "AddHeadersToRequest": {
+        "X-User-Id": "Claims[sub] > value",
+        "X-User-Role": "Claims[role] > value",
+        "X-User-Email": "Claims[email] > value"
+      }
+    },
+    {
+      "Key": "payment-simulation-set",
+      "UpstreamPathTemplate": "/payment/v1/simulation",
+      "UpstreamHttpMethod": [
+        "Put"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamPathTemplate": "/payment/v1/simulation",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "payment-api",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKeys": [
+          "Bearer"
+        ],
+        "AllowedScopes": []
+      },
+      "AddHeadersToRequest": {
+        "X-User-Id": "Claims[sub] > value",
+        "X-User-Role": "Claims[role] > value",
+        "X-User-Email": "Claims[email] > value"
+      }
+    }
+  ],
+  "GlobalConfiguration": {
+    "BaseUrl": "http://localhost:5000",
+    "RequestIdKey": "X-Correlation-ID"
+  }
+}

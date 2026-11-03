@@ -1,0 +1,33 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Products";
+}
+
+<h1>Products</h1>
+<p class="muted">Browse without logging in. You need an account to check out.</p>
+
+@if (Model.Products.Count == 0)
+{
+    <p>No products are available right now.</p>
+}
+else
+{
+    <div class="grid">
+        @foreach (var product in Model.Products)
+        {
+            var available = Model.Available.TryGetValue(product.Id, out var a) ? a : 0;
+            <article class="card">
+                <h2><a asp-page="/Products/Details" asp-route-id="@product.Id">@product.Name</a></h2>
+                <p class="muted">@product.Description</p>
+                <p class="price">PHP @product.Price.ToString("N2")</p>
+                <p class="@(available > 0 ? "stock" : "stock out")">@(available > 0 ? $"{available} in stock" : "Out of stock")</p>
+                <form method="post" asp-page-handler="Add" class="row">
+                    <input type="hidden" name="productId" value="@product.Id" />
+                    <input type="number" name="quantity" value="1" min="1" max="100" aria-label="Quantity" />
+                    <button type="submit" disabled="@(available <= 0)">Add to cart</button>
+                </form>
+            </article>
+        }
+    </div>
+}

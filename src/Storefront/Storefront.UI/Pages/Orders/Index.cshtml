@@ -1,0 +1,30 @@
+@page
+@model Storefront.UI.Pages.Orders.IndexModel
+@{
+    ViewData["Title"] = "My orders";
+}
+
+<h1>@(User.IsInRole("Admin") ? "All orders" : "My orders")</h1>
+
+@if (Model.Orders.Count == 0)
+{
+    <p>No orders yet. <a asp-page="/Index">Start shopping</a>.</p>
+}
+else
+{
+    <table class="table">
+        <thead><tr><th>Placed</th><th>Order</th><th>Status</th><th class="num">Items</th><th class="num">Total</th></tr></thead>
+        <tbody>
+        @foreach (var order in Model.Orders)
+        {
+            <tr>
+                <td>@order.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
+                <td><a asp-page="/Orders/Details" asp-route-id="@order.Id">@order.Id.ToString()[..8]</a></td>
+                <td><span class="status status-@order.Status.ToString().ToLowerInvariant()">@order.Status</span></td>
+                <td class="num">@order.ItemCount</td>
+                <td class="num">@order.Currency @order.TotalAmount.ToString("N2")</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}

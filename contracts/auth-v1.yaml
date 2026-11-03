@@ -1,0 +1,209 @@
+openapi: 3.0.3
+info:
+  title: Store Auth API (hosted by the API gateway)
+  version: "1.0"
+  description: |
+    Registers users and issues JWTs for the store platform. These endpoints are served by the
+    API gateway itself (not forwarded to a service); every other route is forwarded by Ocelot.
+    Tokens are HS256 and carry `sub`, `email`, `name` and `role` (`Customer` or `Admin`).
+    The gateway validates them on protected routes with the same key, issuer and audience.
+servers:
+  - url: http://localhost:5000
+    description: API gateway (docker compose)
+tags:
+  - name: Auth
+paths:
+  /auth/v1/register:
+    post:
+      tags: [Auth]
+      operationId: Register
+      summary: Register a new customer account
+      description: New accounts always get the `Customer` role. Admin accounts are seeded from configuration.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /auth/v1/login:
+    post:
+      tags: [Auth]
+      operationId: Login
+      summary: Exchange email and password for an access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /auth/v1/me:
+    get:
+      tags: [Auth]
+      operationId: GetCurrentUser
+      summary: Return the user the bearer token belongs to
+      security:
+        - bearer: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    TooManyRequests:
+      description: Rate limit exceeded (5 register/login requests per minute per client). See the Retry-After header.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Problem:
+      description: RFC 9457 problem details
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ValidationProblem:
+      description: Request body failed validation
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblemDetails'
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password, displayName]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 256
+          example: juan@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          description: At least 8 characters, with at least one letter and one digit.
+          example: Passw0rd!
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Juan dela Cruz
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: juan@example.com
+        password:
+          type: string
+          format: password
+          example: Passw0rd!
+    UserResponse:
+      type: object
+      required: [id, email, displayName, role]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        role:
+          type: string
+          enum: [Customer, Admin]
+    LoginResponse:
+      type: object
+      required: [accessToken, tokenType, expiresIn, expiresAtUtc, user]
+      properties:
+        accessToken:
+          type: string
+          description: "Signed JWT. Send it as the header `Authorization: Bearer <accessToken>`."
+        tokenType:
+          type: string
+          enum: [Bearer]
+        expiresIn:
+          type: integer
+          description: Seconds until the token expires.
+        expiresAtUtc:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/UserResponse'
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        traceId:
+          type: string
+        correlationId:
+          type: string
+      additionalProperties: true
+    ValidationProblemDetails:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string

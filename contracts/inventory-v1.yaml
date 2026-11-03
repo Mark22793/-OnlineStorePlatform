@@ -1,0 +1,271 @@
+openapi: 3.0.3
+info:
+  title: Inventory API
+  version: '1.0'
+  description: Stock on hand and reservations per product. Reservations are made and released by the order saga over RabbitMQ.
+servers:
+- url: http://localhost:5000
+  description: API gateway (docker compose). The same paths are served by the service inside the network.
+tags:
+- name: Stock
+paths:
+  /inventory/v1/stock:
+    get:
+      tags:
+      - Stock
+      operationId: ListStock
+      summary: List stock levels
+      security: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StockLevel'
+          description: Stock levels
+  /inventory/v1/stock/{productId}:
+    get:
+      tags:
+      - Stock
+      operationId: GetStock
+      summary: Get the stock level of a product
+      security: []
+      parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockLevel'
+          description: Stock level
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+      - Stock
+      operationId: SetStock
+      summary: Set quantity on hand (Admin)
+      description: Creates the stock record if the product has none. Returns 409 if the new quantity is below what is currently
+        reserved.
+      security:
+      - bearer: []
+      parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetStockRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockLevel'
+          description: Updated
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /inventory/v1/reservations/{orderId}:
+    get:
+      tags:
+      - Stock
+      operationId: GetReservations
+      summary: Reservations for an order (Admin)
+      security:
+      - bearer: []
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Reservation'
+          description: Reservations
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    BadRequest:
+      description: Validation failed
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblemDetails'
+    Unauthorized:
+      description: No valid bearer token (returned by the gateway)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Valid token but the role is not allowed (returned by the gateway)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Conflict:
+      description: Request conflicts with the current state
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ServiceUnavailable:
+      description: A dependency is unavailable (circuit open, timeout, or downstream failure)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    ProblemDetails:
+      type: object
+      description: RFC 9457 problem details. traceId and correlationId are added by every service.
+      properties:
+        type:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        status:
+          type: integer
+          nullable: true
+        detail:
+          type: string
+          nullable: true
+        instance:
+          type: string
+          nullable: true
+        traceId:
+          type: string
+          nullable: true
+        correlationId:
+          type: string
+          nullable: true
+      additionalProperties: true
+    ValidationProblemDetails:
+      allOf:
+      - $ref: '#/components/schemas/ProblemDetails'
+      - type: object
+        properties:
+          errors:
+            type: object
+            additionalProperties:
+              type: array
+              items:
+                type: string
+    StockLevel:
+      type: object
+      required:
+      - productId
+      - quantityOnHand
+      - quantityReserved
+      - quantityAvailable
+      - updatedAtUtc
+      properties:
+        productId:
+          type: string
+          format: uuid
+        quantityOnHand:
+          type: integer
+          format: int32
+          minimum: 0
+        quantityReserved:
+          type: integer
+          format: int32
+          minimum: 0
+        quantityAvailable:
+          type: integer
+          format: int32
+          description: quantityOnHand - quantityReserved
+        updatedAtUtc:
+          type: string
+          format: date-time
+    SetStockRequest:
+      type: object
+      required:
+      - quantityOnHand
+      properties:
+        quantityOnHand:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000000
+          example: 100
+    Reservation:
+      type: object
+      required:
+      - id
+      - orderId
+      - productId
+      - quantity
+      - status
+      - createdAtUtc
+      - updatedAtUtc
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          format: int32
+        status:
+          $ref: '#/components/schemas/ReservationStatus'
+        createdAtUtc:
+          type: string
+          format: date-time
+        updatedAtUtc:
+          type: string
+          format: date-time
+    ReservationStatus:
+      type: string
+      enum:
+      - Reserved
+      - Released
+      - Committed

@@ -1,0 +1,79 @@
+@page "{id:guid}"
+@model Storefront.UI.Pages.Orders.DetailsModel
+@{
+    ViewData["Title"] = "Order";
+}
+@section Head {
+    @if (Model.Order is not null && !Model.IsFinal)
+    {
+        <meta http-equiv="refresh" content="2" />
+    }
+}
+
+<p><a asp-page="/Orders/Index">&larr; My orders</a></p>
+
+@if (Model.Order is { } order)
+{
+    <h1>Order @order.Id.ToString()[..8]</h1>
+
+    <div class="summary">
+        <div><span class="label">Status</span><span class="status status-@order.Status.ToString().ToLowerInvariant()">@order.Status</span></div>
+        <div><span class="label">Saga step</span>@order.SagaStep</div>
+        <div><span class="label">Total</span>@order.Currency @order.TotalAmount.ToString("N2")</div>
+        <div><span class="label">Payment failure simulated</span>@(order.SimulatePaymentFailure ? "Yes" : "No")</div>
+    </div>
+
+    @if (!Model.IsFinal)
+    {
+        <p class="muted">The saga is still running. This page refreshes every 2 seconds.</p>
+    }
+    @if (!string.IsNullOrEmpty(order.CancellationReason))
+    {
+        <div class="alert error">Cancelled: @order.CancellationReason</div>
+    }
+
+    <h2>Items</h2>
+    <table class="table">
+        <thead><tr><th>Product</th><th class="num">Unit price (at purchase)</th><th class="num">Qty</th><th class="num">Line total</th></tr></thead>
+        <tbody>
+        @foreach (var item in order.Items)
+        {
+            <tr><td>@item.ProductName</td><td class="num">@item.UnitPrice.ToString("N2")</td><td class="num">@item.Quantity</td><td class="num">@item.LineTotal.ToString("N2")</td></tr>
+        }
+        </tbody>
+    </table>
+
+    <h2>Status history</h2>
+    <ol class="timeline">
+        @foreach (var entry in order.StatusHistory.OrderBy(h => h.OccurredAtUtc))
+        {
+            <li>
+                <span class="when">@entry.OccurredAtUtc.ToLocalTime().ToString("HH:mm:ss.fff")</span>
+                <span class="status status-@entry.Status.ToString().ToLowerInvariant()">@entry.Status</span>
+                <span>@entry.Note</span>
+            </li>
+        }
+    </ol>
+
+    <h2>Payment</h2>
+    @if (Model.Payment is { } payment)
+    {
+        <div class="summary">
+            <div><span class="label">Status</span>@payment.Status</div>
+            <div><span class="label">Amount</span>@payment.Currency @payment.Amount.ToString("N2")</div>
+            <div><span class="label">Reference</span>@(payment.ProviderReference ?? "-")</div>
+            @if (!string.IsNullOrEmpty(payment.FailureReason))
+            {
+                <div><span class="label">Failure</span>@payment.FailureReason</div>
+            }
+        </div>
+        @foreach (var refund in payment.Refunds)
+        {
+            <div class="alert warning">Refunded @payment.Currency @refund.Amount.ToString("N2") on @refund.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"): @refund.Reason</div>
+        }
+    }
+    else
+    {
+        <p class="muted">No payment yet.</p>
+    }
+}
